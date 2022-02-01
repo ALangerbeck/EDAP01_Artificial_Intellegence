@@ -1,12 +1,17 @@
+from os import lseek
+from pickle import TRUE
 import gym
 import random
 import requests
 import numpy as np
 import argparse
 import sys
+import copy
 from gym_connect_four import ConnectFourEnv
 
 env: ConnectFourEnv = gym.make("ConnectFour-v0")
+SEARCH_TREE_MAX_DEPTH = 3
+DEBUG = False
 
 #SERVER_ADRESS = "http://localhost:8000/"
 SERVER_ADRESS = "https://vilde.cs.lth.se/edap01-4inarow/"
@@ -57,6 +62,7 @@ def opponents_move(env):
    # TODO: Optional? change this to select actions with your policy too
    # that way you get way more interesting games, and you can see if starting
    # is enough to guarrantee a win
+   print(list(avmoves))
    action = random.choice(list(avmoves))
 
    state, reward, done, _ = env.step(action)
@@ -66,15 +72,57 @@ def opponents_move(env):
    env.change_player() # change back to student before returning
    return state, reward, done
 
-def student_move():
-   """
+def fuckedExeption():
+   raise Exception(
+                'fucked'
+            )
+
+def student_move(env:ConnectFourEnv):
+   """ 
    TODO: Implement your min-max alpha-beta pruning algorithm here.
    Give it whatever input arguments you think are necessary
    (and change where it is called).
    The function should return a move from 0-6
    """
-   return random.choice([0, 1, 2, 3, 4, 5, 6])
+   value = -np.inf
+   
+   tempBestMove = random.sample(env.available_moves(),1)
+   for x in env.available_moves():
+      tempValue = minmax(env,x,0,TRUE)
+      if(value < tempValue):
+         tempBestMove = x
+         value = tempValue
 
+   return tempBestMove
+   #return random.choice([0, 1, 2, 3, 4, 5, 6])
+
+
+def minmax(env:ConnectFourEnv,action:int, depth, max_player):
+   next_env = copy.deepcopy(env)
+   
+   if DEBUG:
+      print(depth)
+   
+   state, reward, done, _ = next_env.step(action)
+   
+   if reward != 0 | depth == SEARCH_TREE_MAX_DEPTH:
+      return reward
+   
+   if max_player:
+      value = -np.inf
+      for x in next_env.available_moves():
+         tempVal = minmax(next_env,x,depth + 1, False)
+         if value < tempVal:
+            value = tempVal
+      return value   
+   else: #min_player
+      value = np.inf
+      for x in next_env.available_moves():
+         tempVal = minmax(next_env,x,depth + 1, True)
+         if value > tempVal:
+            value = tempVal
+      return value
+      
 def play_game(vs_server = False):
    """
    The reward for a game is as follows. You get a
@@ -93,12 +141,21 @@ def play_game(vs_server = False):
    # setup new game
    if vs_server:
       # Start a new game
+      env.reset(board=None)
       res = call_server(-1) # -1 signals the system to start a new game. any running game is counted as a loss
-
       # This should tell you if you or the bot starts
       print(res.json()['msg'])
       botmove = res.json()['botmove']
+      print(botmove)
       state = np.array(res.json()['state'])
+      
+      if botmove != -1:
+         env.change_player()
+         env.step(botmove)
+         env.change_player()
+
+
+
    else:
       # reset game to starting state
       env.reset(board=None)
@@ -119,18 +176,27 @@ def play_game(vs_server = False):
    done = False
    while not done:
       # Select your move
-      stmove = student_move() # TODO: change input here
+      stmove = student_move(env) # TODO: change input here
 
       # make both student and bot/server moves
       if vs_server:
          # Send your move to server and get response
          res = call_server(stmove)
          print(res.json()['msg'])
+         env.change_player()
 
          # Extract response values
          result = res.json()['result']
          botmove = res.json()['botmove']
          state = np.array(res.json()['state'])
+         
+         print("server move:")
+         print(botmove)
+         print("bot move: ")
+         print (stmove)
+
+         env.step(botmove)
+         env.change_player
       else:
          if student_gets_move:
             # Execute your move
