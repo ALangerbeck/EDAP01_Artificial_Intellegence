@@ -10,13 +10,13 @@ import copy
 from gym_connect_four import ConnectFourEnv
 
 env: ConnectFourEnv = gym.make("ConnectFour-v0")
-SEARCH_TREE_MAX_DEPTH = 3
+SEARCH_TREE_MAX_DEPTH = 4
 DEBUG = False
 
 #SERVER_ADRESS = "http://localhost:8000/"
 SERVER_ADRESS = "https://vilde.cs.lth.se/edap01-4inarow/"
 API_KEY = 'nyckel'
-STIL_ID = ["al5878la-s"] # TODO: fill this list with your stil-id's
+STIL_ID = ["ELIETE"] # TODO: fill this list with your stil-id's
 
 def call_server(move):
    res = requests.post(SERVER_ADRESS + "move",
@@ -63,8 +63,11 @@ def opponents_move(env):
    # that way you get way more interesting games, and you can see if starting
    # is enough to guarrantee a win
    print(list(avmoves))
+   
    action = random.choice(list(avmoves))
-
+   
+   #action = int(input ("Enter a number: "))
+   
    state, reward, done, _ = env.step(action)
    if done:
       if reward == 1: # reward is always in current players view
@@ -84,17 +87,21 @@ def student_move(env:ConnectFourEnv):
    (and change where it is called).
    The function should return a move from 0-6
    """
+   
    value = -np.inf
    
-   tempBestMove = random.sample(env.available_moves(),1)
-   for x in env.available_moves():
+   avmoves = list(env.available_moves())
+   
+   tempBestMove = random.choice(avmoves)
+   for x in  avmoves:
       tempValue = minmax(env,x,0,TRUE)
       if(value < tempValue):
          tempBestMove = x
          value = tempValue
 
    return tempBestMove
-   #return random.choice([0, 1, 2, 3, 4, 5, 6])
+   
+   #return random.choice(list(env.available_moves()))
 
 
 def minmax(env:ConnectFourEnv,action:int, depth, max_player):
@@ -108,16 +115,18 @@ def minmax(env:ConnectFourEnv,action:int, depth, max_player):
    if reward != 0 | depth == SEARCH_TREE_MAX_DEPTH:
       return reward
    
+   avmoves = list(next_env.available_moves())
+
    if max_player:
       value = -np.inf
-      for x in next_env.available_moves():
+      for x in avmoves:
          tempVal = minmax(next_env,x,depth + 1, False)
          if value < tempVal:
             value = tempVal
       return value   
    else: #min_player
       value = np.inf
-      for x in next_env.available_moves():
+      for x in avmoves:
          tempVal = minmax(next_env,x,depth + 1, True)
          if value > tempVal:
             value = tempVal
@@ -181,8 +190,11 @@ def play_game(vs_server = False):
       # make both student and bot/server moves
       if vs_server:
          # Send your move to server and get response
+         
          res = call_server(stmove)
          print(res.json()['msg'])
+
+         env.step(stmove)
          env.change_player()
 
          # Extract response values
@@ -195,8 +207,9 @@ def play_game(vs_server = False):
          print("bot move: ")
          print (stmove)
 
-         env.step(botmove)
-         env.change_player
+         board,_,_,_ =  env.step(botmove)
+         
+         env.change_player()
       else:
          if student_gets_move:
             # Execute your move
@@ -235,7 +248,10 @@ def play_game(vs_server = False):
          print("Current state (1 are student discs, -1 are servers, 0 is empty): ")
 
       # Print current gamestate
+      print("Server state:")
       print(state)
+      print("Env state:")
+      print(board)
       print()
 
 def main():
