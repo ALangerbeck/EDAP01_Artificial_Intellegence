@@ -1,5 +1,7 @@
 from os import lseek
 from pickle import TRUE
+from sqlite3 import Row
+from unittest import case
 import gym
 import random
 import requests
@@ -10,8 +12,11 @@ import copy
 from gym_connect_four import ConnectFourEnv
 
 env: ConnectFourEnv = gym.make("ConnectFour-v0")
-SEARCH_TREE_MAX_DEPTH = 4
+SEARCH_TREE_MAX_DEPTH = 1
 DEBUG = False
+
+COLUMN_COUNT = 7
+ROW_COUNT = 6
 
 #SERVER_ADRESS = "http://localhost:8000/"
 SERVER_ADRESS = "https://vilde.cs.lth.se/edap01-4inarow/"
@@ -75,11 +80,6 @@ def opponents_move(env):
    env.change_player() # change back to student before returning
    return state, reward, done
 
-def fuckedExeption():
-   raise Exception(
-                'fucked'
-            )
-
 def student_move(env:ConnectFourEnv):
    """ 
    TODO: Implement your min-max alpha-beta pruning algorithm here.
@@ -94,42 +94,75 @@ def student_move(env:ConnectFourEnv):
    
    tempBestMove = random.choice(avmoves)
    for x in  avmoves:
-      tempValue = minmax(env,x,0,TRUE)
-      if(value < tempValue):
+      tempValue = minmax(env,x,0,-np.inf,np.inf,TRUE)
+      if(value <= tempValue):
          tempBestMove = x
          value = tempValue
-
+   print(value)
    return tempBestMove
    
    #return random.choice(list(env.available_moves()))
 
 
-def minmax(env:ConnectFourEnv,action:int, depth, max_player):
+
+
+def EvaluateBoard(state:np.ndarray,max_player:bool):
+   score = 0
+
+   tempsum = 0
+   for i in range(ROW_COUNT):
+      for j in range(COLUMN_COUNT):
+         tempsum =+ state[i][j]
+
+      
+
+	
+def minmax(env:ConnectFourEnv,action:int, depth,alpha,beta, max_player):
    next_env = copy.deepcopy(env)
+   alphaLocal = alpha
+   betaLocal = beta
    
    if DEBUG:
       print(depth)
    
    state, reward, done, _ = next_env.step(action)
    
-   if reward != 0 | depth == SEARCH_TREE_MAX_DEPTH:
-      return reward
+   #print("reward:")
+   #print(reward)
+   
+
+   if (reward == 1) and max_player: 
+      print("i see a winning move")
+      return 1000
+   elif (reward == 1) and (not max_player):
+      print("i see a losing move")
+      return  -1000
+   elif (reward == 0.5):
+      return 0
+   elif depth == SEARCH_TREE_MAX_DEPTH:
+      return EvaluateBoard(state,max_player)
    
    avmoves = list(next_env.available_moves())
 
    if max_player:
       value = -np.inf
       for x in avmoves:
-         tempVal = minmax(next_env,x,depth + 1, False)
+         tempVal = minmax(next_env,x,depth + 1,alphaLocal,betaLocal, False)
          if value < tempVal:
             value = tempVal
+         alphaLocal = max(alphaLocal,value)
+         if alphaLocal >= betaLocal:
+            break #beta cutoff
       return value   
    else: #min_player
       value = np.inf
       for x in avmoves:
-         tempVal = minmax(next_env,x,depth + 1, True)
+         tempVal = minmax(next_env,x,depth + 1,alphaLocal,betaLocal, True)
          if value > tempVal:
             value = tempVal
+         betaLocal = min(betaLocal, value)
+         if betaLocal <= alphaLocal:
+               break #alpha cutoff
       return value
       
 def play_game(vs_server = False):
@@ -248,10 +281,7 @@ def play_game(vs_server = False):
          print("Current state (1 are student discs, -1 are servers, 0 is empty): ")
 
       # Print current gamestate
-      print("Server state:")
       print(state)
-      print("Env state:")
-      print(board)
       print()
 
 def main():
