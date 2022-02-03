@@ -1,6 +1,7 @@
 from curses import window
+from email import message
 from os import lseek
-from pickle import TRUE
+from pickle import FALSE, TRUE
 from sqlite3 import Row
 from unittest import case
 import gym
@@ -13,7 +14,7 @@ import copy
 from gym_connect_four import ConnectFourEnv
 
 env: ConnectFourEnv = gym.make("ConnectFour-v0")
-SEARCH_TREE_MAX_DEPTH = 1
+SEARCH_TREE_MAX_DEPTH = 5
 DEBUG = False
 
 COLUMN_COUNT = 7
@@ -22,7 +23,7 @@ ROW_COUNT = 6
 #SERVER_ADRESS = "http://localhost:8000/"
 SERVER_ADRESS = "https://vilde.cs.lth.se/edap01-4inarow/"
 API_KEY = 'nyckel'
-STIL_ID = ["ELIETE"] # TODO: fill this list with your stil-id's
+STIL_ID = ["ELITE"] # TODO: fill this list with your stil-id's
 
 def call_server(move):
    res = requests.post(SERVER_ADRESS + "move",
@@ -99,7 +100,9 @@ def student_move(env:ConnectFourEnv):
       if(value <= tempValue):
          tempBestMove = x
          value = tempValue
-   print(value)
+   if DEBUG:
+         print("Value of chosen move") 
+         print(value)
    return tempBestMove
    
    #return random.choice(list(env.available_moves()))
@@ -149,24 +152,12 @@ def EvaluateBoard(state:np.ndarray,max_player:bool):
                badPieceCount += np.count_nonzero(reversed_board[i + k][j + k] == badPiece)
                if badPieceCount > 0:
                   score -= 1
-
-
-   print(score)   
    return score
 
-
-
-
-      
-
-	
 def minmax(env:ConnectFourEnv,action:int, depth,alpha,beta, max_player):
    next_env = copy.deepcopy(env)
    alphaLocal = alpha
    betaLocal = beta
-   
-   if DEBUG:
-      print(depth)
    
    state, reward, done, _ = next_env.step(action)
    
@@ -176,14 +167,19 @@ def minmax(env:ConnectFourEnv,action:int, depth,alpha,beta, max_player):
 
    if (reward == 1) and max_player: 
       if DEBUG: print("i see a winning move")
-      return 1000
+      return 300
    elif (reward == 1) and (not max_player):
       if DEBUG: print("i see a losing move")
-      return  -1000
+      return  -100 * (SEARCH_TREE_MAX_DEPTH - depth)
    elif (reward == 0.5):
       return 0
    elif depth == SEARCH_TREE_MAX_DEPTH:
-      return EvaluateBoard(state,max_player)
+         if max_player:
+            return EvaluateBoard(state,max_player)- EvaluateBoard(state,not max_player)
+         else:
+            return EvaluateBoard(state,not max_player)- EvaluateBoard(state, max_player)
+
+      
    
    avmoves = list(next_env.available_moves())
 
@@ -277,15 +273,17 @@ def play_game(vs_server = False):
          result = res.json()['result']
          botmove = res.json()['botmove']
          state = np.array(res.json()['state'])
-         
+
+
          print("server move:")
          print(botmove)
          print("bot move: ")
          print (stmove)
 
-         board,_,_,_ =  env.step(botmove)
-         
-         env.change_player()
+         if botmove != -1:
+            board,_,_,_ =  env.step(botmove)
+            env.change_player()
+
       else:
          if student_gets_move:
             # Execute your move
@@ -334,6 +332,7 @@ def main():
    group.add_argument("-l", "--local", help = "Play locally", action="store_true")
    group.add_argument("-o", "--online", help = "Play online vs server", action="store_true")
    parser.add_argument("-s", "--stats", help = "Show your current online stats", action="store_true")
+   parser.add_argument("-t", "--ten", help = "Plays online games until total reward is at least 10", action="store_true")
    args = parser.parse_args()
 
    # Print usage info if no arguments are given
@@ -345,6 +344,13 @@ def main():
       play_game(vs_server = False)
    elif args.online:
       play_game(vs_server = True)
+
+   if args.ten:
+      stats = check_stats()
+      while(stats['streak'] < 20):
+         play_game(vs_server = True)
+         stats = check_stats()
+      print("total reward should now be at least 10")
 
    if args.stats:
       stats = check_stats()
