@@ -1,3 +1,4 @@
+from curses import window
 from os import lseek
 from pickle import TRUE
 from sqlite3 import Row
@@ -107,12 +108,54 @@ def student_move(env:ConnectFourEnv):
 
 
 def EvaluateBoard(state:np.ndarray,max_player:bool):
-   score = 0
+   
+   if max_player:
+      badPiece = -1
+   else:
+      badPiece = 1
 
-   tempsum = 0
+   score = 3*7 + 4*6 + 12 +12
+
+   #row socring
    for i in range(ROW_COUNT):
-      for j in range(COLUMN_COUNT):
-         tempsum =+ state[i][j]
+      for j in range(COLUMN_COUNT - 3):
+            window = state[i][j:j + 4]
+            if np.count_nonzero(window == badPiece) > 0:
+               score -= 1
+   
+   # Test columns on transpose array
+   reversed_board = [list(i) for i in zip(*state)]
+   for i in range(COLUMN_COUNT):
+      for j in range(ROW_COUNT - 3):
+            window = reversed_board[i][j:j + 4]
+            if np.count_nonzero(window == badPiece) > 0:
+               score -= 1
+   
+    # Test diagonal
+   for i in range(ROW_COUNT - 3):
+      for j in range(COLUMN_COUNT - 3):
+            badPieceCount = 0
+            for k in range(4):
+               badPieceCount += np.count_nonzero(state[i + k][j + k] == badPiece)
+               if badPieceCount > 0:
+                  score -= 1
+
+   reversed_board = np.fliplr(state)
+   # Test reverse diagonal
+   for i in range(ROW_COUNT - 3):
+      for j in range(COLUMN_COUNT - 3):
+            badPieceCount = 0
+            for k in range(4):
+               badPieceCount += np.count_nonzero(reversed_board[i + k][j + k] == badPiece)
+               if badPieceCount > 0:
+                  score -= 1
+
+
+   print(score)   
+   return score
+
+
+
 
       
 
@@ -132,10 +175,10 @@ def minmax(env:ConnectFourEnv,action:int, depth,alpha,beta, max_player):
    
 
    if (reward == 1) and max_player: 
-      print("i see a winning move")
+      if DEBUG: print("i see a winning move")
       return 1000
    elif (reward == 1) and (not max_player):
-      print("i see a losing move")
+      if DEBUG: print("i see a losing move")
       return  -1000
    elif (reward == 0.5):
       return 0
