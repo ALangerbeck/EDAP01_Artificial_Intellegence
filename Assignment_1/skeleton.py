@@ -15,7 +15,7 @@ import copy
 from gym_connect_four import ConnectFourEnv
 
 env: ConnectFourEnv = gym.make("ConnectFour-v0")
-SEARCH_TREE_MAX_DEPTH = 4
+SEARCH_TREE_MAX_DEPTH = 5
 DEBUG = True
 
 COLUMN_COUNT = 7
@@ -90,7 +90,7 @@ def student_move(env:ConnectFourEnv):
    (and change where it is called).
    The function should return a move from 0-6
    """
-   move,value = minmax(env,0,None,0,-np.inf,np.inf,True)   
+   move,value = minmax(env,None,None,0,-np.inf,np.inf,True)   
    
    if DEBUG:
          print("Value of chosen move") 
@@ -104,8 +104,7 @@ def student_move(env:ConnectFourEnv):
 
 def EvaluateBoard(state:np.ndarray,max_player:bool):
    
-   """"
-   TAKES TO MUCH TIME
+  
    if max_player:
       badPiece = -1
    else:
@@ -179,10 +178,9 @@ def EvaluateBoard(state:np.ndarray,max_player:bool):
                 utility -= eval_weights[i][j]
 
    return utility
-
+   """
 
 def minmax(env:ConnectFourEnv,reward:int,state:np.ndarray, depth,alpha,beta, max_player):
-   next_env = copy.deepcopy(env)
    alphaLocal = alpha
    betaLocal = beta
    
@@ -192,19 +190,19 @@ def minmax(env:ConnectFourEnv,reward:int,state:np.ndarray, depth,alpha,beta, max
    if (reward == 1) and max_player: 
       #if DEBUG: print("i see a winning move")
       #return 110* (SEARCH_TREE_MAX_DEPTH - depth)
-      return None,np.inf
+      return None,10000000000
    elif (reward == 1) and (not max_player):
       #if DEBUG: print("i see a losing move")
       #return  -100 * (SEARCH_TREE_MAX_DEPTH - depth)
       return None,-np.inf
       
    elif (reward == 0.5):
-      return None,0
+      return None,-10000000000
    elif depth == SEARCH_TREE_MAX_DEPTH:
          return None,EvaluateBoard(state,max_player)
       
    
-   avmoves = list(next_env.available_moves())
+   avmoves = list(env.available_moves())
 
    if max_player:
       value = -np.inf
