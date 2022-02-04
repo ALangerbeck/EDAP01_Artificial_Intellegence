@@ -3,6 +3,7 @@ from email import message
 from os import lseek
 from pickle import FALSE, TRUE
 from sqlite3 import Row
+from tkinter.tix import Tree
 from unittest import case
 import gym
 import random
@@ -14,8 +15,8 @@ import copy
 from gym_connect_four import ConnectFourEnv
 
 env: ConnectFourEnv = gym.make("ConnectFour-v0")
-SEARCH_TREE_MAX_DEPTH = 5
-DEBUG = False
+SEARCH_TREE_MAX_DEPTH = 4
+DEBUG = True
 
 COLUMN_COUNT = 7
 ROW_COUNT = 6
@@ -89,21 +90,12 @@ def student_move(env:ConnectFourEnv):
    (and change where it is called).
    The function should return a move from 0-6
    """
+   move,value = minmax(env,0,None,0,-np.inf,np.inf,True)   
    
-   value = -np.inf
-   
-   avmoves = list(env.available_moves())
-   
-   tempBestMove = random.choice(avmoves)
-   for x in  avmoves:
-      tempValue = minmax(env,x,0,-np.inf,np.inf,TRUE)
-      if(value <= tempValue):
-         tempBestMove = x
-         value = tempValue
    if DEBUG:
          print("Value of chosen move") 
          print(value)
-   return tempBestMove
+   return move
    
    #return random.choice(list(env.available_moves()))
 
@@ -112,12 +104,15 @@ def student_move(env:ConnectFourEnv):
 
 def EvaluateBoard(state:np.ndarray,max_player:bool):
    
+   """"
+   TAKES TO MUCH TIME
    if max_player:
       badPiece = -1
    else:
       badPiece = 1
 
    score = 3*7 + 4*6 + 12 +12
+   badscore = 3*7 + 4*6 + 12 +12
 
    #row socring
    for i in range(ROW_COUNT):
@@ -125,6 +120,8 @@ def EvaluateBoard(state:np.ndarray,max_player:bool):
             window = state[i][j:j + 4]
             if np.count_nonzero(window == badPiece) > 0:
                score -= 1
+            if np.count_nonzero(window == -badPiece) > 0:
+               badscore -= 1
    
    # Test columns on transpose array
    reversed_board = [list(i) for i in zip(*state)]
@@ -133,76 +130,110 @@ def EvaluateBoard(state:np.ndarray,max_player:bool):
             window = reversed_board[i][j:j + 4]
             if np.count_nonzero(window == badPiece) > 0:
                score -= 1
+            if np.count_nonzero(window == -badPiece) > 0:
+               badscore -= 1
    
     # Test diagonal
    for i in range(ROW_COUNT - 3):
       for j in range(COLUMN_COUNT - 3):
             badPieceCount = 0
+            pieceCount = 0
             for k in range(4):
                badPieceCount += np.count_nonzero(state[i + k][j + k] == badPiece)
                if badPieceCount > 0:
                   score -= 1
+               pieceCount += np.count_nonzero(state[i + k][j + k] == -badPiece)
+               if pieceCount > 0:
+                  badscore -= 1
 
    reversed_board = np.fliplr(state)
    # Test reverse diagonal
    for i in range(ROW_COUNT - 3):
       for j in range(COLUMN_COUNT - 3):
             badPieceCount = 0
+            pieceCount = 0
             for k in range(4):
                badPieceCount += np.count_nonzero(reversed_board[i + k][j + k] == badPiece)
                if badPieceCount > 0:
                   score -= 1
-   return score
+               pieceCount += np.count_nonzero(reversed_board[i + k][j + k] == -badPiece)
+               if pieceCount > 0:
+                  badscore -= 1
+   
+   return score - badscore
+   """
+   
+   eval_weights = [[3, 4, 5, 7, 5, 4, 3],
+                    [4, 6, 8, 10, 8, 6, 4],
+                    [5, 8, 11, 13, 11, 8, 5],
+                    [5, 8, 11, 13, 11, 8, 5],
+                    [4, 6, 8, 10, 8, 6, 4],
+                    [3, 4, 5, 7, 5, 4, 3]]
 
-def minmax(env:ConnectFourEnv,action:int, depth,alpha,beta, max_player):
+   utility = 0
+   for i in range(len(eval_weights)):
+      for j in range(len(eval_weights[i])):
+         if state[i][j] == 1:
+                utility += eval_weights[i][j]
+         elif state[i][j] == -1:
+                utility -= eval_weights[i][j]
+
+   return utility
+
+
+def minmax(env:ConnectFourEnv,reward:int,state:np.ndarray, depth,alpha,beta, max_player):
    next_env = copy.deepcopy(env)
    alphaLocal = alpha
    betaLocal = beta
    
-   state, reward, done, _ = next_env.step(action)
-   
    #print("reward:")
    #print(reward)
-   
 
    if (reward == 1) and max_player: 
-      if DEBUG: print("i see a winning move")
-      return 300
+      #if DEBUG: print("i see a winning move")
+      #return 110* (SEARCH_TREE_MAX_DEPTH - depth)
+      return None,np.inf
    elif (reward == 1) and (not max_player):
-      if DEBUG: print("i see a losing move")
-      return  -100 * (SEARCH_TREE_MAX_DEPTH - depth)
+      #if DEBUG: print("i see a losing move")
+      #return  -100 * (SEARCH_TREE_MAX_DEPTH - depth)
+      return None,-np.inf
+      
    elif (reward == 0.5):
-      return 0
+      return None,0
    elif depth == SEARCH_TREE_MAX_DEPTH:
-         if max_player:
-            return EvaluateBoard(state,max_player)- EvaluateBoard(state,not max_player)
-         else:
-            return EvaluateBoard(state,not max_player)- EvaluateBoard(state, max_player)
-
+         return None,EvaluateBoard(state,max_player)
       
    
    avmoves = list(next_env.available_moves())
 
    if max_player:
       value = -np.inf
+      move = random.choice(avmoves)
       for x in avmoves:
-         tempVal = minmax(next_env,x,depth + 1,alphaLocal,betaLocal, False)
-         if value < tempVal:
-            value = tempVal
+         next_env = copy.deepcopy(env)
+         state, reward, done, _ = next_env.step(x)
+         temp_value = minmax(next_env,reward,state,depth + 1,alphaLocal,betaLocal, False)[1]
+         if(temp_value > value):
+            value = temp_value
+            move = x
          alphaLocal = max(alphaLocal,value)
          if alphaLocal >= betaLocal:
             break #beta cutoff
-      return value   
+      return move,value   
    else: #min_player
       value = np.inf
+      move = random.choice(avmoves)
       for x in avmoves:
-         tempVal = minmax(next_env,x,depth + 1,alphaLocal,betaLocal, True)
-         if value > tempVal:
-            value = tempVal
-         betaLocal = min(betaLocal, value)
+         next_env = copy.deepcopy(env)
+         state, reward, done, _ = next_env.step(x)
+         temp_value = minmax(next_env,reward,state,depth + 1,alphaLocal,betaLocal, True)[1]
+         if(temp_value < value):
+            value = temp_value
+            move = x
+         betaLocal = min(betaLocal,value)
          if betaLocal <= alphaLocal:
                break #alpha cutoff
-      return value
+      return move,value
       
 def play_game(vs_server = False):
    """
@@ -234,8 +265,6 @@ def play_game(vs_server = False):
          env.change_player()
          env.step(botmove)
          env.change_player()
-
-
 
    else:
       # reset game to starting state
@@ -350,7 +379,9 @@ def main():
       while(stats['streak'] < 20):
          play_game(vs_server = True)
          stats = check_stats()
-      print("total reward should now be at least 10")
+         print("Streak = ")
+         print(stats['streak'])
+      print("total streak should now be at least 20")
 
    if args.stats:
       stats = check_stats()
