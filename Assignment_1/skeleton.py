@@ -3,7 +3,7 @@ from email import message
 from os import lseek
 from pickle import FALSE, TRUE
 from sqlite3 import Row
-from tkinter.tix import Tree
+#from tkinter.tix import Tree
 from unittest import case
 import gym
 import random
@@ -15,7 +15,7 @@ import copy
 from gym_connect_four import ConnectFourEnv
 
 env: ConnectFourEnv = gym.make("ConnectFour-v0")
-SEARCH_TREE_MAX_DEPTH = 5
+SEARCH_TREE_MAX_DEPTH = 3
 DEBUG = True
 
 COLUMN_COUNT = 7
@@ -70,10 +70,10 @@ def opponents_move(env):
    # TODO: Optional? change this to select actions with your policy too
    # that way you get way more interesting games, and you can see if starting
    # is enough to guarrantee a win
-   print(list(avmoves))
-   
+      
    action = random.choice(list(avmoves))
    
+   #print(list(avmoves))
    #action = int(input ("Enter a number: "))
    
    state, reward, done, _ = env.step(action)
@@ -90,7 +90,7 @@ def student_move(env:ConnectFourEnv):
    (and change where it is called).
    The function should return a move from 0-6
    """
-   move,value = minmax(env,None,None,0,-np.inf,np.inf,True)   
+   move,value = minmax(env,0,env.board,SEARCH_TREE_MAX_DEPTH,-np.inf,np.inf,True)   
    
    if DEBUG:
          print("Value of chosen move") 
@@ -99,86 +99,111 @@ def student_move(env:ConnectFourEnv):
    
    #return random.choice(list(env.available_moves()))
 
+def winning_move(board, piece):
+	# Check horizontal locations for win
+	for c in range(COLUMN_COUNT-3):
+		for r in range(ROW_COUNT):
+			if board[r][c] == piece and board[r][c+1] == piece and board[r][c+2] == piece and board[r][c+3] == piece:
+				return True
 
+	# Check vertical locations for win
+	for c in range(COLUMN_COUNT):
+		for r in range(ROW_COUNT-3):
+			if board[r][c] == piece and board[r+1][c] == piece and board[r+2][c] == piece and board[r+3][c] == piece:
+				return True
+
+	# Check positively sloped diaganols
+	for c in range(COLUMN_COUNT-3):
+		for r in range(ROW_COUNT-3):
+			if board[r][c] == piece and board[r+1][c+1] == piece and board[r+2][c+2] == piece and board[r+3][c+3] == piece:
+				return True
+
+	# Check negatively sloped diaganols
+	for c in range(COLUMN_COUNT-3):
+		for r in range(3, ROW_COUNT):
+			if board[r][c] == piece and board[r-1][c+1] == piece and board[r-2][c+2] == piece and board[r-3][c+3] == piece:
+				return True
+
+def score_window(window, max_player:bool):
+   score = 0
+
+   if max_player:
+      opp_piece = -1
+      piece = 1
+   else:
+      opp_piece = 1
+      piece = -1
+
+   #np.count_nonzero(window == badPiece)
+
+   if np.count_nonzero(window == piece) == 4:
+      score += 100
+   elif np.count_nonzero(window == piece) == 3 and np.count_nonzero(window == 0) == 1:
+      score += 5
+   elif np.count_nonzero(window == piece) == 2 and np.count_nonzero(window == 0) == 2:
+      score += 2
+
+   if np.count_nonzero(window == opp_piece) == 3 and np.count_nonzero(window == 0) == 1:
+      score -= 4
+
+   return score
 
 
 def EvaluateBoard(state:np.ndarray,max_player:bool):
+   """
+   score = 0
    
-  
-   if max_player:
-      badPiece = -1
-   else:
-      badPiece = 1
-
-   score = 3*7 + 4*6 + 12 +12
-   badscore = 3*7 + 4*6 + 12 +12
-
-   #row socring
+  # Test rows
    for i in range(ROW_COUNT):
       for j in range(COLUMN_COUNT - 3):
-            window = state[i][j:j + 4]
-            if np.count_nonzero(window == badPiece) > 0:
-               score -= 1
-            if np.count_nonzero(window == -badPiece) > 0:
-               badscore -= 1
-   
+         window = state[i][j:j + 4]
+         score += score_window(window,max_player)
+
    # Test columns on transpose array
    reversed_board = [list(i) for i in zip(*state)]
    for i in range(COLUMN_COUNT):
       for j in range(ROW_COUNT - 3):
             window = reversed_board[i][j:j + 4]
-            if np.count_nonzero(window == badPiece) > 0:
-               score -= 1
-            if np.count_nonzero(window == -badPiece) > 0:
-               badscore -= 1
-   
-    # Test diagonal
-   for i in range(ROW_COUNT - 3):
-      for j in range(COLUMN_COUNT - 3):
-            badPieceCount = 0
-            pieceCount = 0
-            for k in range(4):
-               badPieceCount += np.count_nonzero(state[i + k][j + k] == badPiece)
-               if badPieceCount > 0:
-                  score -= 1
-               pieceCount += np.count_nonzero(state[i + k][j + k] == -badPiece)
-               if pieceCount > 0:
-                  badscore -= 1
+            score += score_window(window,max_player)
 
-   reversed_board = np.fliplr(state)
-   # Test reverse diagonal
-   for i in range(ROW_COUNT - 3):
-      for j in range(COLUMN_COUNT - 3):
-            badPieceCount = 0
-            pieceCount = 0
-            for k in range(4):
-               badPieceCount += np.count_nonzero(reversed_board[i + k][j + k] == badPiece)
-               if badPieceCount > 0:
-                  score -= 1
-               pieceCount += np.count_nonzero(reversed_board[i + k][j + k] == -badPiece)
-               if pieceCount > 0:
-                  badscore -= 1
-   
-   return score - badscore
+  ## Score posiive sloped diagonal
+   for r in range(ROW_COUNT-3):
+      for c in range(COLUMN_COUNT-3):
+         window = [state[r+i][c+i] for i in range(4)]
+         score += score_window(window, max_player)
+
+   for r in range(ROW_COUNT-3):
+      for c in range(COLUMN_COUNT-3):
+         window = [state[r+3-i][c+i] for i in range(4)]
+         score += score_window(window, max_player)
+  
+   return score
    """
    
+
    eval_weights = [[3, 4, 5, 7, 5, 4, 3],
-                    [4, 6, 8, 10, 8, 6, 4],
-                    [5, 8, 11, 13, 11, 8, 5],
-                    [5, 8, 11, 13, 11, 8, 5],
-                    [4, 6, 8, 10, 8, 6, 4],
-                    [3, 4, 5, 7, 5, 4, 3]]
+                     [4, 6, 8, 10, 8, 6, 4],
+                     [5, 8, 11, 13, 11, 8, 5],
+                     [5, 8, 11, 13, 11, 8, 5],
+                     [4, 6, 8, 10, 8, 6, 4],
+                     [3, 4, 5, 7, 5, 4, 3]]
+   if(max_player):
+      good_piece = 1
+      bad_piece = -1
+   else:
+      good_piece = -1
+      bad_piece = 1
 
    utility = 0
    for i in range(len(eval_weights)):
       for j in range(len(eval_weights[i])):
          if state[i][j] == 1:
-                utility += eval_weights[i][j]
+                  utility += eval_weights[i][j]
          elif state[i][j] == -1:
-                utility -= eval_weights[i][j]
+                  utility -= eval_weights[i][j]
 
    return utility
-   """
+
 
 def minmax(env:ConnectFourEnv,reward:int,state:np.ndarray, depth,alpha,beta, max_player):
    alphaLocal = alpha
@@ -186,20 +211,18 @@ def minmax(env:ConnectFourEnv,reward:int,state:np.ndarray, depth,alpha,beta, max
    
    #print("reward:")
    #print(reward)
-
-   if (reward == 1) and max_player: 
-      #if DEBUG: print("i see a winning move")
-      #return 110* (SEARCH_TREE_MAX_DEPTH - depth)
-      return None,10000000000
-   elif (reward == 1) and (not max_player):
+   
+   if winning_move(state,-1): 
       #if DEBUG: print("i see a losing move")
-      #return  -100 * (SEARCH_TREE_MAX_DEPTH - depth)
-      return None,-np.inf
-      
-   elif (reward == 0.5):
       return None,-10000000000
-   elif depth == SEARCH_TREE_MAX_DEPTH:
-         return None,EvaluateBoard(state,max_player)
+   elif winning_move(state,1):
+      #if DEBUG: print("i see a winning move")
+      return  None,10000000000
+   elif (len(env.available_moves()) == 0):
+      return None,0
+   elif depth == 0:
+      #if DEBUG: print("End of searchtree")
+      return None,EvaluateBoard(state,max_player)
       
    
    avmoves = list(env.available_moves())
@@ -207,30 +230,33 @@ def minmax(env:ConnectFourEnv,reward:int,state:np.ndarray, depth,alpha,beta, max
    if max_player:
       value = -np.inf
       move = random.choice(avmoves)
+      
       for x in avmoves:
          next_env = copy.deepcopy(env)
-         state, reward, done, _ = next_env.step(x)
-         temp_value = minmax(next_env,reward,state,depth + 1,alphaLocal,betaLocal, False)[1]
+         state_n, reward_n, done_n, _ = next_env.step(x)
+         next_env.change_player()
+         temp_value = minmax(next_env,reward_n,state_n,depth - 1,alphaLocal,betaLocal, False)[1]
          if(temp_value > value):
             value = temp_value
             move = x
-         alphaLocal = max(alphaLocal,value)
-         if alphaLocal >= betaLocal:
-            break #beta cutoff
+         #alphaLocal = max(alphaLocal,value)
+         #if alphaLocal >= betaLocal:
+         #   break #beta cutoff
       return move,value   
    else: #min_player
       value = np.inf
       move = random.choice(avmoves)
       for x in avmoves:
          next_env = copy.deepcopy(env)
-         state, reward, done, _ = next_env.step(x)
-         temp_value = minmax(next_env,reward,state,depth + 1,alphaLocal,betaLocal, True)[1]
+         state_n, reward_n, done_n, _ = next_env.step(x)
+         next_env.change_player()
+         temp_value = minmax(next_env,reward_n,state_n,depth -1,alphaLocal,betaLocal, True)[1]
          if(temp_value < value):
             value = temp_value
             move = x
-         betaLocal = min(betaLocal,value)
-         if betaLocal <= alphaLocal:
-               break #alpha cutoff
+         #betaLocal = min(betaLocal,value)
+         #if alphaLocal <= betaLocal:
+         #      break #alpha cutoff
       return move,value
       
 def play_game(vs_server = False):
