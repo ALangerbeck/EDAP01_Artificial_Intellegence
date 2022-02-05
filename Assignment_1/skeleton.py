@@ -15,16 +15,23 @@ import copy
 from gym_connect_four import ConnectFourEnv
 
 env: ConnectFourEnv = gym.make("ConnectFour-v0")
-SEARCH_TREE_MAX_DEPTH = 3
+SEARCH_TREE_MAX_DEPTH = 5
 DEBUG = True
 
 COLUMN_COUNT = 7
 ROW_COUNT = 6
 
+BOARD_POS_SCORE = [[3, 4, 5, 7, 5, 4, 3],
+                     [4, 6, 8, 10, 8, 6, 4],
+                     [5, 8, 11, 13, 11, 8, 5],
+                     [5, 8, 11, 13, 11, 8, 5],
+                     [4, 6, 8, 10, 8, 6, 4],
+                     [3, 4, 5, 7, 5, 4, 3]]
+
 #SERVER_ADRESS = "http://localhost:8000/"
 SERVER_ADRESS = "https://vilde.cs.lth.se/edap01-4inarow/"
 API_KEY = 'nyckel'
-STIL_ID = ["ELITE"] # TODO: fill this list with your stil-id's
+STIL_ID = ["al5878la-s"] # TODO: fill this list with your stil-id's
 
 def call_server(move):
    res = requests.post(SERVER_ADRESS + "move",
@@ -84,8 +91,11 @@ def opponents_move(env):
    return state, reward, done
 
 def student_move(env:ConnectFourEnv):
+   #determins a good move from current board state
+   #start of the recursive function
+   
    """ 
-   TODO: Implement your min-max alpha-beta pruning algorithm here.
+   DONE: Implement your min-max alpha-beta pruning algorithm here.
    Give it whatever input arguments you think are necessary
    (and change where it is called).
    The function should return a move from 0-6
@@ -100,6 +110,9 @@ def student_move(env:ConnectFourEnv):
    #return random.choice(list(env.available_moves()))
 
 def winning_move(board, piece):
+   #see if a piece has won the game
+
+
 	# Check horizontal locations for win
 	for c in range(COLUMN_COUNT-3):
 		for r in range(ROW_COUNT):
@@ -125,6 +138,10 @@ def winning_move(board, piece):
 				return True
 
 def score_window(window, max_player:bool):
+
+   #Method related to alternative evaluation function 
+   #Not used but kept for logging purposes
+
    score = 0
 
    if max_player:
@@ -133,8 +150,6 @@ def score_window(window, max_player:bool):
    else:
       opp_piece = 1
       piece = -1
-
-   #np.count_nonzero(window == badPiece)
 
    if np.count_nonzero(window == piece) == 4:
       score += 100
@@ -150,7 +165,12 @@ def score_window(window, max_player:bool):
 
 
 def EvaluateBoard(state:np.ndarray,max_player:bool):
+   #the evaluation function for a state, contains both a more complex function and a more "good enough approach"
+   #the good enough approach is used
+
    """
+   # ALTERNATIVE WAY OF DOING BOARD EVALUATION
+   # TURNED OUT TO TAKE TO MUCH TIME in some cases
    score = 0
    
   # Test rows
@@ -179,14 +199,8 @@ def EvaluateBoard(state:np.ndarray,max_player:bool):
   
    return score
    """
-   
 
-   eval_weights = [[3, 4, 5, 7, 5, 4, 3],
-                     [4, 6, 8, 10, 8, 6, 4],
-                     [5, 8, 11, 13, 11, 8, 5],
-                     [5, 8, 11, 13, 11, 8, 5],
-                     [4, 6, 8, 10, 8, 6, 4],
-                     [3, 4, 5, 7, 5, 4, 3]]
+   #Determine if -1 means bad or good piece
    if(max_player):
       good_piece = 1
       bad_piece = -1
@@ -194,34 +208,31 @@ def EvaluateBoard(state:np.ndarray,max_player:bool):
       good_piece = -1
       bad_piece = 1
 
-   utility = 0
-   for i in range(len(eval_weights)):
-      for j in range(len(eval_weights[i])):
+   #Scores board depending on value of each piece
+   score = 0
+   for i in range(len(BOARD_POS_SCORE)):
+      for j in range(len(BOARD_POS_SCORE[i])):
          if state[i][j] == 1:
-                  utility += eval_weights[i][j]
+                  score += BOARD_POS_SCORE[i][j]
          elif state[i][j] == -1:
-                  utility -= eval_weights[i][j]
+                  score -= BOARD_POS_SCORE[i][j]
 
-   return utility
-
+   return score
+   
 
 def minmax(env:ConnectFourEnv,reward:int,state:np.ndarray, depth,alpha,beta, max_player):
+   #the min max algorithm with alpha beta pruning
    alphaLocal = alpha
    betaLocal = beta
    
-   #print("reward:")
-   #print(reward)
    
    if winning_move(state,-1): 
-      #if DEBUG: print("i see a losing move")
       return None,-10000000000
    elif winning_move(state,1):
-      #if DEBUG: print("i see a winning move")
       return  None,10000000000
    elif (len(env.available_moves()) == 0):
       return None,0
    elif depth == 0:
-      #if DEBUG: print("End of searchtree")
       return None,EvaluateBoard(state,max_player)
       
    
@@ -239,9 +250,9 @@ def minmax(env:ConnectFourEnv,reward:int,state:np.ndarray, depth,alpha,beta, max
          if(temp_value > value):
             value = temp_value
             move = x
-         #alphaLocal = max(alphaLocal,value)
-         #if alphaLocal >= betaLocal:
-         #   break #beta cutoff
+         alphaLocal = max(alphaLocal,value)
+         if alphaLocal >= betaLocal:
+            break #beta cutoff
       return move,value   
    else: #min_player
       value = np.inf
@@ -254,9 +265,9 @@ def minmax(env:ConnectFourEnv,reward:int,state:np.ndarray, depth,alpha,beta, max
          if(temp_value < value):
             value = temp_value
             move = x
-         #betaLocal = min(betaLocal,value)
-         #if alphaLocal <= betaLocal:
-         #      break #alpha cutoff
+         betaLocal = min(betaLocal,value)
+         if alphaLocal >= betaLocal:
+            break #alpha cutoff
       return move,value
       
 def play_game(vs_server = False):
@@ -285,6 +296,7 @@ def play_game(vs_server = False):
       print(botmove)
       state = np.array(res.json()['state'])
       
+      #Since local moves are are made using gym envoirment, server moves need to be input aswell
       if botmove != -1:
          env.change_player()
          env.step(botmove)
@@ -319,6 +331,7 @@ def play_game(vs_server = False):
          res = call_server(stmove)
          print(res.json()['msg'])
 
+         #student move
          env.step(stmove)
          env.change_player()
 
@@ -333,6 +346,7 @@ def play_game(vs_server = False):
          print("bot move: ")
          print (stmove)
 
+         #make server move in envoirment
          if botmove != -1:
             board,_,_,_ =  env.step(botmove)
             env.change_player()
@@ -385,7 +399,8 @@ def main():
    group.add_argument("-l", "--local", help = "Play locally", action="store_true")
    group.add_argument("-o", "--online", help = "Play online vs server", action="store_true")
    parser.add_argument("-s", "--stats", help = "Show your current online stats", action="store_true")
-   parser.add_argument("-t", "--ten", help = "Plays online games until total reward is at least 10", action="store_true")
+   parser.add_argument("-t", "--twenty", help = "Plays online games until total streak is at least 20", action="store_true")
+   parser.add_argument("-p", "--plus", help = "Plays online games until total reward is at least 10", action="store_true")
    args = parser.parse_args()
 
    # Print usage info if no arguments are given
@@ -398,7 +413,7 @@ def main():
    elif args.online:
       play_game(vs_server = True)
 
-   if args.ten:
+   if args.twenty:
       stats = check_stats()
       while(stats['streak'] < 20):
          play_game(vs_server = True)
@@ -406,6 +421,15 @@ def main():
          print("Streak = ")
          print(stats['streak'])
       print("total streak should now be at least 20")
+   
+   if args.plus:
+      stats = check_stats()
+      while(stats['total_reward'] < 10):
+         play_game(vs_server = True)
+         stats = check_stats()
+         print("total_reward = ")
+         print(stats['total_reward'])
+      print("total reward should now be at least 10")
 
    if args.stats:
       stats = check_stats()
