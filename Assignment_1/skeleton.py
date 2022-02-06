@@ -100,7 +100,7 @@ def student_move(env:ConnectFourEnv):
    (and change where it is called).
    The function should return a move from 0-6
    """
-   move,value = minmax(env,0,env.board,SEARCH_TREE_MAX_DEPTH,-np.inf,np.inf,True)   
+   move,value = minmax(env,env.board,SEARCH_TREE_MAX_DEPTH,-np.inf,np.inf,True)   
    
    if DEBUG:
          print("Value of chosen move") 
@@ -220,22 +220,20 @@ def EvaluateBoard(state:np.ndarray,max_player:bool):
    return score
    
 
-def minmax(env:ConnectFourEnv,reward:int,state:np.ndarray, depth,alpha,beta, max_player):
+def minmax(env:ConnectFourEnv,state:np.ndarray, depth,alpha,beta, max_player):
    #the min max algorithm with alpha beta pruning
    alphaLocal = alpha
    betaLocal = beta
    
-   
-   if winning_move(state,-1): 
-      return None,-10000000000
-   elif winning_move(state,1):
-      return  None,10000000000
+   if winning_move(state,1): 
+      return None,10000000000
+   elif winning_move(state,-1):
+      return  None,-10000000000
    elif (len(env.available_moves()) == 0):
       return None,0
    elif depth == 0:
       return None,EvaluateBoard(state,max_player)
       
-   
    avmoves = list(env.available_moves())
 
    if max_player:
@@ -244,9 +242,9 @@ def minmax(env:ConnectFourEnv,reward:int,state:np.ndarray, depth,alpha,beta, max
       
       for x in avmoves:
          next_env = copy.deepcopy(env)
-         state_n, reward_n, done_n, _ = next_env.step(x)
+         state_n, _, _, _ = next_env.step(x)
          next_env.change_player()
-         temp_value = minmax(next_env,reward_n,state_n,depth - 1,alphaLocal,betaLocal, False)[1]
+         temp_value = minmax(next_env,state_n,depth - 1,alphaLocal,betaLocal, False)[1]
          if(temp_value > value):
             value = temp_value
             move = x
@@ -259,9 +257,9 @@ def minmax(env:ConnectFourEnv,reward:int,state:np.ndarray, depth,alpha,beta, max
       move = random.choice(avmoves)
       for x in avmoves:
          next_env = copy.deepcopy(env)
-         state_n, reward_n, done_n, _ = next_env.step(x)
+         state_n, _, _, _ = next_env.step(x)
          next_env.change_player()
-         temp_value = minmax(next_env,reward_n,state_n,depth -1,alphaLocal,betaLocal, True)[1]
+         temp_value = minmax(next_env,state_n,depth -1,alphaLocal,betaLocal, True)[1]
          if(temp_value < value):
             value = temp_value
             move = x
