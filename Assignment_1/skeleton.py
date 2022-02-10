@@ -15,23 +15,18 @@ import copy
 from gym_connect_four import ConnectFourEnv
 
 env: ConnectFourEnv = gym.make("ConnectFour-v0")
-SEARCH_TREE_MAX_DEPTH = 5
+SEARCH_TREE_MAX_DEPTH = 4
 DEBUG = True
 
 COLUMN_COUNT = 7
 ROW_COUNT = 6
 
-BOARD_POS_SCORE = [[3, 4, 5, 7, 5, 4, 3],
-                     [4, 6, 8, 10, 8, 6, 4],
-                     [5, 8, 11, 13, 11, 8, 5],
-                     [5, 8, 11, 13, 11, 8, 5],
-                     [4, 6, 8, 10, 8, 6, 4],
-                     [3, 4, 5, 7, 5, 4, 3]]
+
 
 #SERVER_ADRESS = "http://localhost:8000/"
 SERVER_ADRESS = "https://vilde.cs.lth.se/edap01-4inarow/"
 API_KEY = 'nyckel'
-STIL_ID = ["al5878la-s"] # TODO: fill this list with your stil-id's
+STIL_ID = ["al5878la-s"] # DONE: fill this list with your stil-id's
 
 def call_server(move):
    res = requests.post(SERVER_ADRESS + "move",
@@ -201,12 +196,19 @@ def EvaluateBoard(state:np.ndarray,max_player:bool):
    """
 
    #Determine if -1 means bad or good piece
-   if(max_player):
-      good_piece = 1
-      bad_piece = -1
-   else:
-      good_piece = -1
-      bad_piece = 1
+   #if(max_player):
+   #   good_piece = 1
+   #   bad_piece = -1
+   #else:
+   #   good_piece = -1
+   #   bad_piece = 1
+
+   BOARD_POS_SCORE = [[3, 4, 5, 7, 5, 4, 3],
+                     [4, 6, 8, 10, 8, 6, 4],
+                     [5, 8, 11, 13, 11, 8, 5],
+                     [5, 8, 11, 13, 11, 8, 5],
+                     [4, 6, 8, 10, 8, 6, 4],
+                     [3, 4, 5, 7, 5, 4, 3]]
 
    #Scores board depending on value of each piece
    score = 0
@@ -320,7 +322,7 @@ def play_game(vs_server = False):
    done = False
    while not done:
       # Select your move
-      stmove = student_move(env) # TODO: change input here
+      stmove = student_move(env) # DONE: change input here
 
       # make both student and bot/server moves
       if vs_server:
