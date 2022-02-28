@@ -3,6 +3,8 @@
 # The Localizer binds the models together and controls the update cycle in its "update" method.
 #
 
+from os import read
+from typing import Tuple
 import numpy as np
 import matplotlib.pyplot as plt
 import random
@@ -10,7 +12,7 @@ import random
 from models import StateModel,TransitionModel,ObservationModel,RobotSimAndFilter
 
 class Localizer:
-    def __init__(self, sm):
+    def __init__(self, sm:StateModel):
 
         self.__sm = sm
 
@@ -61,8 +63,8 @@ class Localizer:
     
     # add your simulator and filter here, for example    
         
-        #self.__rs = RobotSimAndFilter.RobotSim( ...)
-        #self.__HMM = RobotSimAndFilter.HMMFilter( ...)
+        self.__rs = RobotSimAndFilter.RobotSim(self.__sm,self.__trueState)
+        self.__HMM = RobotSimAndFilter.HMMFilter(self.__sm,self.__tm,self.__om)
     #
     #  Implement the update cycle:
     #  - robot moves one step, generates new state / pose
@@ -86,19 +88,30 @@ class Localizer:
         # update all the values to something sensible instead of just reading the old values...
         # 
         
-        # this block can be kept as is
+        self.__rs.move()
+        self.__trueState = self.__rs.getState()
+        x_cord, y_cord, heading = self.__sm.state_to_pose(self.__trueState)
+        print("Robot location x :{} y: {} h: {}  ".format(x_cord,y_cord,heading))
+
+        
+        self.__sense  = self.__rs.senseLoc()
+        self.__probs,self.__estimate = self.__HMM.update(self.__sense ,self.__probs)
+
+
+        # this block can be kept as is --------------------------------
         ret = False  # in case the sensor reading is "nothing" this is kept...
         tsX, tsY, tsH = self.__sm.state_to_pose(self.__trueState)
         srX = -1
         srY = -1
         if self.__sense != None:
-            srX, srY = self.__sm.reading_to_position(self.__sense)
+            srX, srY = self.__sense
             ret = True
             
         eX, eY = self.__estimate
-        
+        # -------------------------------------------------------------
+        print("Sensed state: {},{}".format(eX,eY))
         # this should be updated to spit out the actual error for this step
-        error = 10.0                
+        error = abs(tsX-eX)+(abs(tsY-eY))               
         
         # if you use the visualisation (dashboard), this return statement needs to be kept the same
         # or the visualisation needs to be adapted (your own risk!)

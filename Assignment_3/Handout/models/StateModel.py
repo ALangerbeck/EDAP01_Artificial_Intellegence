@@ -10,6 +10,7 @@
 # Seen from the side, you get the "regular" coordinate system with the x-axis running to the right and
 # the y-axis running "up".
 
+from typing import Tuple
 import numpy as np
 import matplotlib.pyplot as plt
 import random
