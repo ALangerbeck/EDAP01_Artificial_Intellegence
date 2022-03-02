@@ -73,7 +73,7 @@ class RobotSim:
         return 0 <= x <= (self.gridCols -1)and 0 <= y <= (self.gridRows -1)
 
 class HMMFilter:
-    def __init__(self, stateModel :StateModel, transitionModel, observationModel):
+    def __init__(self, stateModel :StateModel, transitionModel:TransitionModel, observationModel:ObservationModel):
         self.__stateModel = stateModel
         self.__observationModel = observationModel
         self.__transitionModel = transitionModel
@@ -85,15 +85,9 @@ class HMMFilter:
         else:
             senseReading = None
 
-        probabilities = np.matmul(np.matmul(self.__observationModel.get_o_reading(senseReading),
-         self.__transitionModel.get_T_transp()), probabilities)       
-        probabilities = (1.0 / sum(probabilities) ) * probabilities
-        TempProbabilities = {}
-        for i,j in enumerate(probabilities):
-            cords = self.__stateModel.state_to_position(i)
-            TempProbabilities[cords] = TempProbabilities.get(cords,0) + j
+        diagonal = self.__observationModel.get_o_reading(senseReading)
+        transpose = self.__transitionModel.get_T_transp()
+        probabilities = ((diagonal @ transpose) @ probabilities)/ np.linalg.norm((diagonal @ transpose) @ probabilities)
         
-        return probabilities, max(TempProbabilities,key=TempProbabilities.get)
-        
-        
+        return probabilities, np.argmax(probabilities)
         
