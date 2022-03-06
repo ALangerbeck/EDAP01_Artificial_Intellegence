@@ -3,6 +3,7 @@ from os import remove
 import random as rnd
 from types import NoneType
 import numpy as np
+from sklearn import neighbors
 
 from models import TransitionModel,ObservationModel,StateModel
 
@@ -50,6 +51,8 @@ class RobotSim:
         x,y = self.__sm.state_to_position(self.trueState)
         neigborsOne = self.getNeigbors(x,y,1)
         neighborsTwo = self.getNeigbors(x,y,2)
+        #print(neigborsOne)
+        #print(neighborsTwo)
         rnd.shuffle(neigborsOne)
         rnd.shuffle(neighborsTwo)
         if prob < 0.1:
@@ -62,11 +65,30 @@ class RobotSim:
             return None
         
     def getNeigbors(self,x:int,y:int,neigborRank:int):
+        if neigborRank == 2 :
+            possible = \
+                         [(x-2,y)   , (x+2,y)   , (x,y-2)    , 
+                          (x,y+2)   , (x-2,y-2) , (x+2,y+2)  ,  
+                          (x-2,y+2) , (x+2,y-2) , (x+2,y+1)  , 
+                          (x+1,y+2) , (x-1, y-2), (x-2, y-1) , 
+                          (x-1,y+2) , (x+1, y-2), (x-2, y+1 ), 
+                          (x+2, y-1)                          
+                         ]
+        elif neigborRank == 1:
+             possible = \
+                            [(x-1,y)  , (x+1,y)  , (x,y-1)  ,
+                             (x,y+1)  , (x-1,y-1), (x+1,y+1),
+                             (x-1,y+1), (x+1,y-1) ]
         neigh = []
+        for x_pos,y_pos in possible:
+            if self.inBoard(x_pos,y_pos): neigh.append((x_pos,y_pos))
+
+        """ Old method turned out not to work
         for nx in range(x - neigborRank, x + neigborRank + 1):
             for ny in range (y - neigborRank, y + neigborRank +1):
                 if self.inBoard(nx, ny) and (nx != x and ny != y):
                     neigh.append((nx, ny))
+        """
         return neigh
     
     def inBoard(self, x, y):
@@ -87,7 +109,7 @@ class HMMFilter:
 
         diagonal = self.__observationModel.get_o_reading(senseReading)
         transpose = self.__transitionModel.get_T_transp()
-        probabilities = ((diagonal @ transpose) @ probabilities)/ np.linalg.norm((diagonal @ transpose) @ probabilities)
+        probabilities = ((diagonal @ transpose) @ probabilities)
+        probabilities = 1/sum(probabilities) * probabilities
         
         return probabilities, np.argmax(probabilities)
-        

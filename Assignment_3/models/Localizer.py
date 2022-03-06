@@ -70,24 +70,33 @@ class Localizer:
         self.__trueState = self.__rs.getState()
         x_cord, y_cord, heading = self.__sm.state_to_pose(self.__trueState)
         print("Robot location x :{} y: {} h: {}  ".format(x_cord,y_cord,heading))
-
         self.__sense  = self.__rs.senseLoc()
-        self.__probs,self.__estimate = self.__HMM.update(self.__sense ,self.__probs)
+        self.__probs, self.__estimate = self.__HMM.update(self.__sense ,self.__probs)
+        
+        #--------------- sensor & filter ------------
+        #estimate = self.__sm.state_to_position(self.__estimate)
 
-        # this block can be kept as is --------------------------------
-        ret = False  # in case the sensor reading is "nothing" this is kept...
+        #------------------- Guessing ---------------
+        guessig_list = range(0,8)
+        guessY = random.choice(guessig_list)
+        guessX = random.choice(guessig_list)
+        #estimate = (guessX,guessY)
+
+        #------------------ Sensor ------------------
+        if self.__sense != None : estimate = self.__sense 
+        else: estimate = (-1,-1)
+
+
+
+        ret = False
         tsX, tsY, tsH = self.__sm.state_to_pose(self.__trueState)
         srX = -1
         srY = -1
         if self.__sense != None:
             srX, srY = self.__sense
             ret = True
-            
-        eX, eY = self.__sm.state_to_position(self.__estimate)
-        # -------------------------------------------------------------
+        eX, eY = estimate
         print("Sensed state: {},{}".format(eX,eY))
         error = abs(tsX-eX)+(abs(tsY-eY))               
         
-        # if you use the visualisation (dashboard), this return statement needs to be kept the same
-        # or the visualisation needs to be adapted (your own risk!)
         return ret, tsX, tsY, tsH, srX, srY, eX, eY, error, self.__probs

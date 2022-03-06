@@ -83,7 +83,7 @@ class Localizer:
             srX, srY = self.__sense
             ret = True
             
-        eX, eY = self.__sm.state_to_position(self.__estimate)
+        eX, eY = self.__estimate
         # -------------------------------------------------------------
         print("Sensed state: {},{}".format(eX,eY))
         error = abs(tsX-eX)+(abs(tsY-eY))               
