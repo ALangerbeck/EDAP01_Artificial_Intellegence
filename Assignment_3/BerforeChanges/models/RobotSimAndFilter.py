@@ -11,17 +11,13 @@ from models import TransitionModel,ObservationModel,StateModel
 # Add your Robot Simulator here
 #
 class RobotSim:
-    def __init__(self,stateModel:StateModel,trueState , observationModel:ObservationModel, transitionalModel: TransitionModel):
+    def __init__(self,stateModel:StateModel,trueState):
         self.__sm = stateModel
         self.trueState = trueState
-        self.__om = observationModel
-        self.__tm = transitionalModel
 
         self.gridRows, self.gridCols,self.Heading = self.__sm.get_grid_dimensions()         
     
     def move(self) -> int:
-
-        """
         tempX,tempY,tempH = self.__sm.state_to_pose(self.trueState)
 
         headings = []
@@ -46,29 +42,11 @@ class RobotSim:
         elif tempH == 3: tempY -= 1
 
         self.trueState = self.__sm.pose_to_state(tempX,tempY,tempH)
-        """
-        current_state = self.trueState    # State
-        
-        next_state = -1 # Non-existant state to initialize with
-        probs = []
-        states = []
-        for state in range(self.__tm.get_num_of_states()-1):
-            probs.append(self.__tm.get_T_ij(current_state, state))        
-            states.append(state)
-            
-        next_state = np.random.choice(states, 1, p=probs)[0]
-        if next_state >= 0:
-            current_state = next_state     # If still -1, then no good state found
-        else:
-            return None
-        
-        self.trueState = current_state
     
     def getState(self):
         return self.trueState
     
     def senseLoc(self):
-        """
         prob = rnd.random()
         x,y = self.__sm.state_to_position(self.trueState)
         neigborsOne = self.getNeigbors(x,y,1)
@@ -85,27 +63,7 @@ class RobotSim:
             return neighborsTwo[0]
         else:
             return None
-        """
         
-        current_state = self.trueState     # State
-        
-        probs = []
-        readings = []
-        readings.append(None)
-        probs.append(self.__om.get_o_reading_state(None, current_state))
-        for reading in range(self.__om.get_nr_of_readings()-1):
-            probs.append(self.__om.get_o_reading_state(reading, current_state))
-            readings.append(reading)
-        
-        probs /= sum(probs)
-        print("Readings: {}".format(readings))
-        sensor = np.random.choice(readings, 1, p=probs)[0]
-        
-                  
-        return sensor        
-        
-
-
     def getNeigbors(self,x:int,y:int,neigborRank:int):
         if neigborRank == 2 :
             possible = \
@@ -143,11 +101,15 @@ class HMMFilter:
         self.__transitionModel = transitionModel
         
 
-    def update(self, senseReading, probabilities):
+    def update(self, reading, probabilities):
+        if reading :
+            senseReading = self.__stateModel.position_to_reading(reading[0], reading[1])
+        else:
+            senseReading = None
 
         diagonal = self.__observationModel.get_o_reading(senseReading)
         transpose = self.__transitionModel.get_T_transp()
-        probabilities = diagonal @ transpose @ probabilities
+        probabilities = ((diagonal @ transpose) @ probabilities)
         probabilities = 1/np.linalg.norm(probabilities) * probabilities
         
         return probabilities, np.argmax(probabilities)

@@ -135,7 +135,7 @@ class Dashboard:
         self.nbr_of_moves = 0
         self.initialised = False
 
-        self.plot_time = 0.001 * self.rows * self.cols * self.head
+        self.plot_time = 0.005 * self.rows * self.cols * self.head
 
         # transition matrix and observation matrix visualization
         self.transition_step = 0

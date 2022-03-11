@@ -61,7 +61,7 @@ class Localizer:
         self.__probs = np.ones(self.__sm.get_num_of_states()) / (self.__sm.get_num_of_states())
         self.__estimate = self.__sm.state_to_position(np.argmax(self.__probs))  
         
-        self.__rs = RobotSimAndFilter.RobotSim(self.__sm,self.__trueState,self.__om,self.__tm)
+        self.__rs = RobotSimAndFilter.RobotSim(self.__sm,self.__trueState)
         self.__HMM = RobotSimAndFilter.HMMFilter(self.__sm,self.__tm,self.__om)
    
     def update(self) -> (bool, int, int, int, int, int, int, int, int, np.array(1)) :
@@ -93,7 +93,7 @@ class Localizer:
         srX = -1
         srY = -1
         if self.__sense != None:
-            srX, srY = self.__sm.reading_to_position(self.__sense)
+            srX, srY = self.__sense
             ret = True
         eX, eY = estimate
         print("Sensed state: {},{}".format(eX,eY))
