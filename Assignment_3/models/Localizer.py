@@ -83,7 +83,7 @@ class Localizer:
         #estimate = (guessX,guessY)
 
         #------------------ Sensor ------------------
-        #if self.__sense != None : estimate = self.__sense 
+        #if self.__sense != None : estimate = self.__sm.reading_to_position(self.__sense)
         #else: estimate = (-1,-1)
 
 
